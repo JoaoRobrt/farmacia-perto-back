@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarApp } from '../src/app';
 import { municipios } from '../src/data/municipios';
 import { criarEstadosRepositoryMock } from '../src/modules/estados/estados.repository.mock';
+import { criarFarmaciasRepositoryMock } from '../src/modules/farmacias/farmacias.repository.mock';
 import { criarEstadosService } from '../src/modules/estados/estados.service';
 import type { MunicipiosRepository } from '../src/modules/municipios/municipios.repository';
 import { criarMunicipiosRepositoryMock } from '../src/modules/municipios/municipios.repository.mock';
@@ -11,7 +12,11 @@ import { ErroHttp } from '../src/shared/errors';
 
 function appCom(repository: MunicipiosRepository) {
   return criarApp(
-    { estados: criarEstadosRepositoryMock(), municipios: repository },
+    {
+      estados: criarEstadosRepositoryMock(),
+      municipios: repository,
+      farmacias: criarFarmaciasRepositoryMock(),
+    },
     { corsOrigin: '*' },
   );
 }
