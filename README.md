@@ -46,7 +46,7 @@ O CORS só afeta o Expo web (`http://localhost:8081`); o app Android não envia 
 
 ## Endpoints
 
-Todas as respostas são JSON. Os campos seguem os tipos `Estado`, `Municipio` e `Farmacia` de `src/shared/types.ts`.
+Todas as respostas são JSON. Os campos seguem os tipos `Estado`, `Municipio` e `Farmacia` de `src/shared/types.ts`. Nos exemplos de lista abaixo, `...` indica itens omitidos: a resposta real traz a lista completa.
 
 ### `GET /health`
 

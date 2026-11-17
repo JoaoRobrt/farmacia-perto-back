@@ -3,10 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarApp } from '../src/app';
 import { estados } from '../src/data/estados';
 import { criarEstadosRepositoryMock } from '../src/modules/estados/estados.repository.mock';
-import { criarFarmaciasRepositoryMock } from '../src/modules/farmacias/farmacias.repository.mock';
-import { criarMunicipiosRepositoryMock } from '../src/modules/municipios/municipios.repository.mock';
 import type { EstadosRepository } from '../src/modules/estados/estados.repository';
 import { criarEstadosService } from '../src/modules/estados/estados.service';
+import { criarFarmaciasRepositoryMock } from '../src/modules/farmacias/farmacias.repository.mock';
+import { criarMunicipiosRepositoryMock } from '../src/modules/municipios/municipios.repository.mock';
 import { ErroHttp } from '../src/shared/errors';
 
 function appCom(repository: EstadosRepository) {
