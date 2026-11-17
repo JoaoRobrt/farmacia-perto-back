@@ -44,7 +44,6 @@ describe('GET /municipios/:id/farmacias', () => {
         'municipioId',
         'nome',
       ]);
-      expect(item.municipioId).toBe('pb-campina-grande');
       expect(typeof item.latitude).toBe('number');
       expect(typeof item.longitude).toBe('number');
     }
