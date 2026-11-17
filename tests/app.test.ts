@@ -3,11 +3,15 @@ import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarApp } from '../src/app';
 import { criarEstadosRepositoryMock } from '../src/modules/estados/estados.repository.mock';
+import { criarMunicipiosRepositoryMock } from '../src/modules/municipios/municipios.repository.mock';
 import { ErroHttp, naoEncontrado, requisicaoInvalida } from '../src/shared/errors';
 import { tratarErros } from '../src/shared/middlewares/tratarErros';
 
 function criarAppDeTeste(opcoes: Parameters<typeof criarApp>[1]) {
-  return criarApp({ estados: criarEstadosRepositoryMock() }, opcoes);
+  return criarApp(
+    { estados: criarEstadosRepositoryMock(), municipios: criarMunicipiosRepositoryMock() },
+    opcoes,
+  );
 }
 
 describe('criarApp', () => {

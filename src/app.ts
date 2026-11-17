@@ -4,11 +4,16 @@ import { criarEstadosController } from './modules/estados/estados.controller';
 import type { EstadosRepository } from './modules/estados/estados.repository';
 import { criarEstadosRoutes } from './modules/estados/estados.routes';
 import { criarEstadosService } from './modules/estados/estados.service';
+import { criarMunicipiosController } from './modules/municipios/municipios.controller';
+import type { MunicipiosRepository } from './modules/municipios/municipios.repository';
+import { criarMunicipiosRoutes } from './modules/municipios/municipios.routes';
+import { criarMunicipiosService } from './modules/municipios/municipios.service';
 import { rotaNaoEncontrada } from './shared/middlewares/rotaNaoEncontrada';
 import { tratarErros } from './shared/middlewares/tratarErros';
 
 export type Repositories = {
   estados: EstadosRepository;
+  municipios: MunicipiosRepository;
 };
 
 export type OpcoesApp = {
@@ -36,6 +41,9 @@ export function criarApp(repositories: Repositories, opcoes: OpcoesApp): Express
 
   const estadosService = criarEstadosService(repositories.estados);
   app.use(criarEstadosRoutes(criarEstadosController(estadosService)));
+
+  const municipiosService = criarMunicipiosService(repositories.municipios, estadosService);
+  app.use(criarMunicipiosRoutes(criarMunicipiosController(municipiosService)));
 
   app.use(rotaNaoEncontrada);
   app.use(tratarErros);

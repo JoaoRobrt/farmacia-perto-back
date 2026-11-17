@@ -3,12 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarApp } from '../src/app';
 import { estados } from '../src/data/estados';
 import { criarEstadosRepositoryMock } from '../src/modules/estados/estados.repository.mock';
+import { criarMunicipiosRepositoryMock } from '../src/modules/municipios/municipios.repository.mock';
 import type { EstadosRepository } from '../src/modules/estados/estados.repository';
 import { criarEstadosService } from '../src/modules/estados/estados.service';
 import { ErroHttp } from '../src/shared/errors';
 
 function appCom(repository: EstadosRepository) {
-  return criarApp({ estados: repository }, { corsOrigin: '*' });
+  return criarApp(
+    { estados: repository, municipios: criarMunicipiosRepositoryMock() },
+    { corsOrigin: '*' },
+  );
 }
 
 describe('GET /estados', () => {
