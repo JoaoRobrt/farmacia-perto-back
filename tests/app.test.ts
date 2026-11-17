@@ -2,11 +2,16 @@ import express from 'express';
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarApp } from '../src/app';
+import { criarEstadosRepositoryMock } from '../src/modules/estados/estados.repository.mock';
 import { ErroHttp, naoEncontrado, requisicaoInvalida } from '../src/shared/errors';
 import { tratarErros } from '../src/shared/middlewares/tratarErros';
 
+function criarAppDeTeste(opcoes: Parameters<typeof criarApp>[1]) {
+  return criarApp({ estados: criarEstadosRepositoryMock() }, opcoes);
+}
+
 describe('criarApp', () => {
-  const app = criarApp({}, { corsOrigin: '*' });
+  const app = criarAppDeTeste({ corsOrigin: '*' });
 
   it('responde 200 com status ok em GET /health', async () => {
     const res = await request(app).get('/health');
@@ -29,25 +34,25 @@ describe('criarApp', () => {
 
 describe('CORS', () => {
   it('permite qualquer origem quando corsOrigin é *', async () => {
-    const app = criarApp({}, { corsOrigin: '*' });
+    const app = criarAppDeTeste({ corsOrigin: '*' });
     const res = await request(app).get('/health').set('Origin', 'http://qualquer.com');
     expect(res.headers['access-control-allow-origin']).toBe('*');
   });
 
   it('reflete a origem quando corsOrigin é uma única origem', async () => {
-    const app = criarApp({}, { corsOrigin: 'http://localhost:8081' });
+    const app = criarAppDeTeste({ corsOrigin: 'http://localhost:8081' });
     const res = await request(app).get('/health').set('Origin', 'http://localhost:8081');
     expect(res.headers['access-control-allow-origin']).toBe('http://localhost:8081');
   });
 
   it('aceita origem presente em lista separada por vírgula', async () => {
-    const app = criarApp({}, { corsOrigin: 'http://a.com, http://b.com' });
+    const app = criarAppDeTeste({ corsOrigin: 'http://a.com, http://b.com' });
     const res = await request(app).get('/health').set('Origin', 'http://b.com');
     expect(res.headers['access-control-allow-origin']).toBe('http://b.com');
   });
 
   it('não envia Access-Control-Allow-Origin para origem fora da lista', async () => {
-    const app = criarApp({}, { corsOrigin: 'http://a.com, http://b.com' });
+    const app = criarAppDeTeste({ corsOrigin: 'http://a.com, http://b.com' });
     const res = await request(app).get('/health').set('Origin', 'http://c.com');
     expect(res.status).toBe(200);
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
