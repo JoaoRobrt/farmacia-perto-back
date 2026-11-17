@@ -1,6 +1,6 @@
 # Farmácia Perto - API
 
-API HTTP do Farmácia Perto, app que localiza farmácias credenciadas ao Programa Farmácia Popular. Nesta etapa serve dados mockados: estados e municípios reais, farmácias fictícias.
+API HTTP do Farmácia Perto, app que localiza farmácias credenciadas ao Programa Farmácia Popular. Os dados ficam em PostgreSQL; o banco começa vazio (ainda não há importação da fonte oficial).
 
 ## Stack
 
@@ -9,21 +9,23 @@ API HTTP do Farmácia Perto, app que localiza farmácias credenciadas ao Program
 - Configuração por `.env`, lido com `process.loadEnvFile()` nativo do Node.
 - `tsx watch` em desenvolvimento; `tsc` gera `dist/` para produção.
 - Testes com Vitest e `supertest`.
-- Sem banco de dados: os dados ficam em `src/data/`.
+- PostgreSQL com o driver `pg`, SQL escrito à mão, sem ORM.
+- Os dados mockados de `src/data/` são usados só pelos testes.
 
 ## Como rodar
 
-Requisito: Node.js 22.12 ou superior, nas linhas 22, 24 ou 26+ (exigência do Vitest; o servidor em si precisa de 20.12+ por causa do `process.loadEnvFile`).
+Requisitos: Node.js 22.12 ou superior, nas linhas 22, 24 ou 26+ (exigência do Vitest; o servidor em si precisa de 20.12+ por causa do `process.loadEnvFile`), e PostgreSQL (veja [Banco de dados](#banco-de-dados)).
 
 Na pasta `farmacia-perto-back/`:
 
 ```bash
 npm install
 cp .env.example .env    # no PowerShell: Copy-Item .env.example .env
+npm run db:migrate
 npm run dev
 ```
 
-A API sobe em `http://localhost:3000`. O `.env` é opcional: sem ele valem os padrões abaixo.
+A API sobe em `http://localhost:3000`. O `.env` precisa ter `DATABASE_URL`; as demais variáveis têm os padrões abaixo. Se não conseguir conectar ao banco, a API não sobe.
 
 ### Scripts
 
@@ -34,15 +36,42 @@ A API sobe em `http://localhost:3000`. O `.env` é opcional: sem ele valem os pa
 | `npm run build` | Compila `src/` para `dist/` |
 | `npm start` | Executa `dist/server.js` (rode `npm run build` antes) |
 | `npm test` | Roda os testes com Vitest |
+| `npm run db:migrate` | Cria as tabelas e os índices no banco de `DATABASE_URL` |
 
 ### Variáveis de ambiente
 
 | Variável | Padrão | Uso |
 |---|---|---|
+| `DATABASE_URL` | nenhum (obrigatória) | URL de conexão do PostgreSQL, por exemplo `postgres://postgres:senha@localhost:5432/farmacia_perto`. |
+| `DATABASE_URL_TEST` | nenhum | Banco dos testes de integração. Esses testes apagam os dados dele. |
 | `PORT` | `3000` | Porta HTTP. Precisa ser um inteiro positivo; valor inválido impede a API de subir. |
 | `CORS_ORIGIN` | `*` | Origens liberadas no CORS. Aceita `*`, uma origem ou uma lista separada por vírgula. |
 
 O CORS só afeta o Expo web (`http://localhost:8081`); o app Android não envia `Origin`.
+
+## Banco de dados
+
+1. Instale o PostgreSQL para Windows pelo instalador de https://www.postgresql.org/download/windows/. Anote a senha do usuário `postgres` e mantenha a porta padrão `5432`. Para usar `createdb` e `psql` no terminal, adicione a pasta `bin` da instalação (por exemplo `C:\Program Files\PostgreSQL\<versão>\bin`) ao `PATH`.
+2. Crie os bancos da aplicação e dos testes:
+
+   ```bash
+   createdb -U postgres farmacia_perto
+   createdb -U postgres farmacia_perto_test
+   ```
+
+   Ou, dentro do `psql -U postgres`:
+
+   ```sql
+   CREATE DATABASE farmacia_perto;
+   CREATE DATABASE farmacia_perto_test;
+   ```
+
+3. No `.env`, ajuste usuário e senha em `DATABASE_URL` (e em `DATABASE_URL_TEST`, se for rodar os testes de integração).
+4. Crie as tabelas com `npm run db:migrate`. O comando pode ser repetido sem efeito sobre o que já existe.
+
+O banco começa vazio: até haver dados, `GET /estados` responde `[]` e as demais rotas respondem 404 (UF ou município não encontrado).
+
+Os testes de integração com o PostgreSQL só rodam quando `DATABASE_URL_TEST` está definida, e **apagam os dados desse banco**. Nunca aponte essa variável para o banco da aplicação. Sem ela, `npm test` roda só os testes que usam os dados mockados.
 
 ## Endpoints
 
@@ -60,7 +89,7 @@ GET /health
 
 ### `GET /estados`
 
-Lista as 27 unidades federativas.
+Lista as unidades federativas cadastradas, em ordem de nome. Com o banco vazio, devolve `[]`.
 
 ```http
 GET /estados
@@ -76,7 +105,7 @@ GET /estados
 
 ### `GET /estados/:uf/municipios`
 
-Lista os municípios da UF. A sigla aceita minúsculas (`pb` ou `PB`). UF existente sem municípios no mock devolve `[]`.
+Lista os municípios da UF. A sigla aceita minúsculas (`pb` ou `PB`). Ordenados por nome; UF existente sem municípios cadastrados devolve `[]`.
 
 ```http
 GET /estados/PB/municipios
@@ -97,7 +126,7 @@ GET /estados/PB/municipios
 
 ### `GET /municipios/:id/farmacias`
 
-Lista as farmácias do município. O mock tem farmácias apenas em `pb-campina-grande` e `pb-joao-pessoa`; os demais municípios devolvem `[]`.
+Lista as farmácias do município, em ordem de nome. Município existente sem farmácias cadastradas devolve `[]`.
 
 ```http
 GET /municipios/pb-campina-grande/farmacias
@@ -136,8 +165,9 @@ GET /municipios/pb-campina-grande/farmacias
 farmacia-perto-back/
 ├── src/
 │   ├── app.ts       # criarApp: monta middlewares, módulos e tratamento de erros
-│   ├── server.ts    # lê a configuração, injeta os repositórios mock e sobe o servidor
-│   ├── data/        # dados mockados
+│   ├── server.ts    # lê a configuração, conecta ao PostgreSQL, injeta os repositórios e sobe o servidor
+│   ├── data/        # dados mockados (usados só pelos testes)
+│   ├── db/          # pool, schema e script de migração
 │   ├── modules/     # estados, municipios, farmacias
 │   └── shared/      # tipos, configuração, erros e middlewares
 └── tests/
@@ -148,7 +178,7 @@ Cada módulo é dividido em camadas, criadas por funções fábrica:
 - **routes:** mapeiam o caminho para o handler.
 - **controller:** lê os parâmetros, chama o service e responde.
 - **service:** valida os parâmetros (400) e a existência do recurso (404). Um módulo usa outro pelo service dele (farmacias → municipios → estados).
-- **repository:** interface de acesso aos dados; a implementação `repository.mock` é a única que lê `src/data/`. Trocar pela fonte real exige só outra implementação, passada em `server.ts`.
+- **repository:** interface de acesso aos dados, com duas implementações: `repository.pg` (PostgreSQL, usada por `server.ts`) e `repository.mock` (a única que lê `src/data/`, usada pelos testes).
 
 ## Apontando o app para a API
 
