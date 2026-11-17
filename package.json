@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "test": "vitest run",
-    "db:migrate": "tsx src/db/migrar.ts"
+    "db:migrate": "tsx src/db/migrar.ts",
+    "db:importar": "tsx src/db/importar.cli.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",

@@ -1,6 +1,6 @@
 # Farmácia Perto - API
 
-API HTTP do Farmácia Perto, app que localiza farmácias credenciadas ao Programa Farmácia Popular. Os dados ficam em PostgreSQL; o banco começa vazio (ainda não há importação da fonte oficial).
+API HTTP do Farmácia Perto, app que localiza farmácias credenciadas ao Programa Farmácia Popular. Os dados ficam em PostgreSQL; o banco começa vazio e é preenchido pela importação da saída do extrator (veja [Importando os dados](#importando-os-dados)).
 
 ## Stack
 
@@ -37,6 +37,7 @@ A API sobe em `http://localhost:3000`. O `.env` precisa ter `DATABASE_URL`; as d
 | `npm start` | Executa `dist/server.js` (rode `npm run build` antes) |
 | `npm test` | Roda os testes com Vitest |
 | `npm run db:migrate` | Cria as tabelas e os índices no banco de `DATABASE_URL` |
+| `npm run db:importar -- <pasta>` | Importa a saída do extrator para o banco de `DATABASE_URL` (veja [Importando os dados](#importando-os-dados)) |
 
 ### Variáveis de ambiente
 
@@ -69,9 +70,29 @@ O CORS só afeta o Expo web (`http://localhost:8081`); o app Android não envia 
 3. No `.env`, ajuste usuário e senha em `DATABASE_URL` (e em `DATABASE_URL_TEST`, se for rodar os testes de integração).
 4. Crie as tabelas com `npm run db:migrate`. O comando pode ser repetido sem efeito sobre o que já existe.
 
-O banco começa vazio: até haver dados, `GET /estados` responde `[]` e as demais rotas respondem 404 (UF ou município não encontrado).
+O banco começa vazio: até a importação (abaixo), `GET /estados` responde `[]` e as demais rotas respondem 404 (UF ou município não encontrado).
 
 Os testes de integração com o PostgreSQL só rodam quando `DATABASE_URL_TEST` está definida, e **apagam os dados desse banco**. Nunca aponte essa variável para o banco da aplicação. Sem ela, `npm test` roda só os testes que usam os dados mockados.
+
+### Importando os dados
+
+1. Gere a saída com o extrator em `scripts/extrair-farmacias/`, um projeto Node à parte (veja o README dele). Ele cruza a planilha oficial de farmácias participantes do Programa Farmácia Popular com as coordenadas do CNES e geocodifica pelo OpenStreetMap quem ficou sem coordenada:
+
+   ```bash
+   cd scripts/extrair-farmacias
+   npm install
+   npm run extrair -- --uf PB --municipio "Campina Grande"
+   cd ../..
+   ```
+
+   A pasta `scripts/extrair-farmacias/saida/` (fora do git) recebe `estados.json`, `municipios.json` e `farmacias.json`, além de relatórios que a importação ignora.
+2. Com as tabelas criadas (`npm run db:migrate`), rode:
+
+   ```bash
+   npm run db:importar -- scripts/extrair-farmacias/saida
+   ```
+
+O comando valida os três arquivos antes de tocar no banco e grava tudo em uma única transação: se algo falhar, nada é alterado. Estados, municípios e farmácias são inseridos ou atualizados pelo id, então a importação pode ser repetida sem duplicar. A sincronização é por município: para cada município presente na importação, as farmácias dele que não vieram nos arquivos são removidas, porque foram descredenciadas. Municípios fora da importação não são tocados, e estados e municípios nunca são apagados.
 
 ## Endpoints
 
@@ -167,7 +188,7 @@ farmacia-perto-back/
 │   ├── app.ts       # criarApp: monta middlewares, módulos e tratamento de erros
 │   ├── server.ts    # lê a configuração, conecta ao PostgreSQL, injeta os repositórios e sobe o servidor
 │   ├── data/        # dados mockados (usados só pelos testes)
-│   ├── db/          # pool, schema e script de migração
+│   ├── db/          # pool, schema, migração e importação
 │   ├── modules/     # estados, municipios, farmacias
 │   └── shared/      # tipos, configuração, erros e middlewares
 └── tests/
