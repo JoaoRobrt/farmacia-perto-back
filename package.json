@@ -1,0 +1,28 @@
+{
+  "name": "farmacia-perto-back",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API do Farmácia Perto: estados, municípios e farmácias credenciadas ao Programa Farmácia Popular.",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.2",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0",
+    "vitest": "^5.1.0"
+  }
+}
