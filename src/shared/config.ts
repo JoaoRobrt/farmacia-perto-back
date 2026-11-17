@@ -3,6 +3,7 @@ import fs from 'node:fs';
 export type Config = {
   porta: number;
   corsOrigin: string;
+  databaseUrl: string;
 };
 
 const PORTA_PADRAO = 3000;
@@ -20,11 +21,20 @@ function lerPorta(valor: string | undefined): number {
   return porta;
 }
 
+function lerDatabaseUrl(valor: string | undefined): string {
+  const url = valor?.trim();
+  if (!url) {
+    throw new Error('DATABASE_URL não informada. Defina a URL de conexão do PostgreSQL no .env.');
+  }
+  return url;
+}
+
 export function lerConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const corsOrigin = env.CORS_ORIGIN?.trim();
   return {
     porta: lerPorta(env.PORT),
     corsOrigin: corsOrigin ? corsOrigin : CORS_ORIGIN_PADRAO,
+    databaseUrl: lerDatabaseUrl(env.DATABASE_URL),
   };
 }
 
