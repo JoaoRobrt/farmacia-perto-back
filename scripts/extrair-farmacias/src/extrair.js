@@ -26,22 +26,22 @@ export async function extrair(planilha, filtro = {}, fontes = {}) {
   if (filtro.municipio) linhas = linhas.filter((f) => normalizar(f.municipio) === normalizar(filtro.municipio));
   if (!linhas.length) throw new Error('Nenhuma farmácia após o filtro. Confira --uf e --municipio.');
 
-  const ufs = [...new Set(linhas.map((f) => f.uf))].sort();
+  // Uma UF fora do padrão abortaria a consulta ao IBGE ou invalidaria a importação inteira
+  const ufs = [...new Set(linhas.map((f) => f.uf))].filter((uf) => /^[A-Z]{2}$/.test(uf)).sort();
 
   // A importação remove quem não está nesta lista, por isso ela cobre a planilha inteira: a farmácia pode ter mudado de UF
   const credenciadas = [...new Set(todasLinhas.map((f) => f.cnpj))];
   const sincronizacao = { ufs, credenciadas };
 
   // Resolve cada linha para o município oficial do IBGE
-  const naoResolvidas = [];
   for (const uf of ufs) {
     const indice = indexarMunicipios(await listarMunicipios(uf));
     for (const f of linhas.filter((l) => l.uf === uf)) {
       f.municipioIbge = indice.achar(f);
-      if (!f.municipioIbge) naoResolvidas.push(f);
     }
   }
   const resolvidas = linhas.filter((f) => f.municipioIbge);
+  const naoResolvidas = linhas.filter((f) => !f.municipioIbge);
   if (naoResolvidas.length) log(`Aviso: ${naoResolvidas.length} farmácias com município não reconhecido no IBGE.`);
 
   // Busca as coordenadas no CNES, um município por vez
