@@ -310,6 +310,25 @@ describe.skipIf(!url)('importarDados: Postgres', () => {
     expect(await idsFarmacias()).toEqual(['f1', 'f3']);
   });
 
+  it('uma UF inválida de sincronizacao.ufs não apaga farmácias de outra UF e remove só a de SP fora da lista', async () => {
+    const extra = farmacia('f4', 'Delta Farma', '3550308', -23.55, -46.63);
+    await importarDados(pool, {
+      ...dadosBase,
+      farmacias: [...farmacias, extra],
+      sincronizacao: { ufs: ['PB', 'SP'], credenciadas: ['f1', 'f2', 'f3', 'f4'] },
+    });
+
+    const resumo = await importarDados(pool, {
+      estados,
+      municipios,
+      farmacias: [farmacias[2]],
+      sincronizacao: { ufs: ['PBX', 'SP'], credenciadas: ['f3'] },
+    });
+
+    expect(resumo.farmaciasRemovidas).toBe(1);
+    expect(await idsFarmacias()).toEqual(['f1', 'f2', 'f3']);
+  });
+
   it('desfaz tudo quando o banco rejeita um item no meio da transação (CA12)', async () => {
     await importarDados(pool, dadosBase);
 

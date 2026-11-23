@@ -34,7 +34,7 @@ npm run extrair -- --uf PB --sem-geocodificar              # só CNES, sem OpenS
 | `sem-coordenadas.csv` | Farmácias que ficaram de fora e o motivo |
 | `geocodificadas.csv` | Farmácias localizadas pelo OpenStreetMap, com a precisão, para revisão |
 | `metadados.json` | Fontes, data da extração, totais e % de cobertura |
-| `sincronizacao.json` | `ufs` cobertas pela extração e `credenciadas`, os CNPJs da planilha inteira (mesmo com filtro e mesmo sem coordenada). A importação remove do banco as farmácias dessas UFs que não estão na lista |
+| `sincronizacao.json` | `ufs` cobertas pela extração (só siglas de duas letras) e `credenciadas`, os CNPJs da planilha inteira (mesmo com filtro e mesmo sem coordenada). A importação remove do banco as farmácias dessas UFs que não estão na lista |
 
 ## Limitações
 
