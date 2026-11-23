@@ -5,6 +5,7 @@ export type DadosImportacao = {
   estados: unknown;
   municipios: unknown;
   farmacias: unknown;
+  sincronizacao: unknown;
 };
 
 export type ResumoImportacao = {
@@ -13,6 +14,8 @@ export type ResumoImportacao = {
   farmacias: number;
   farmaciasRemovidas: number;
 };
+
+type Sincronizacao = { ufs: string[]; credenciadas: string[] };
 
 type Campo = { nome: string; tipo: 'texto' | 'id' | 'numero' };
 
@@ -66,25 +69,62 @@ function validarLista<T>(arquivo: string, valor: unknown, campos: Campo[]): T[] 
   return valor as T[];
 }
 
+function validarSincronizacao(valor: unknown): Sincronizacao {
+  const arquivo = 'sincronizacao.json';
+  if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) {
+    throw new Error(`${arquivo}: o conteúdo deve ser um objeto.`);
+  }
+  const registro = valor as Record<string, unknown>;
+  for (const nome of ['ufs', 'credenciadas']) {
+    const lista = registro[nome];
+    if (lista === undefined || lista === null) {
+      throw new Error(`${arquivo}: campo "${nome}" ausente.`);
+    }
+    if (!Array.isArray(lista)) {
+      throw new Error(`${arquivo}: campo "${nome}" deve ser uma lista (array).`);
+    }
+    if (lista.length === 0) {
+      throw new Error(`${arquivo}: campo "${nome}" não pode ser vazio.`);
+    }
+    lista.forEach((item: unknown, indice) => {
+      const onde = `${arquivo}: campo "${nome}", item ${indice}`;
+      if (typeof item !== 'string') {
+        throw new Error(`${onde}: deve ser texto.`);
+      }
+      if (item.trim() === '') {
+        throw new Error(`${onde}: não pode ser vazio.`);
+      }
+    });
+  }
+  return valor as Sincronizacao;
+}
+
 function validar(dados: DadosImportacao) {
   const estados = validarLista<Estado>('estados.json', dados.estados, CAMPOS_ESTADO);
   const municipios = validarLista<Municipio>('municipios.json', dados.municipios, CAMPOS_MUNICIPIO);
   const farmacias = validarLista<Farmacia>('farmacias.json', dados.farmacias, CAMPOS_FARMACIA);
+  const sincronizacao = validarSincronizacao(dados.sincronizacao);
 
   const idsMunicipios = new Set(municipios.map((m) => m.id));
+  const credenciadas = new Set(sincronizacao.credenciadas);
   farmacias.forEach((farmacia, indice) => {
     if (!idsMunicipios.has(farmacia.municipioId)) {
       throw new Error(
         `farmacias.json, item ${indice}: municipioId "${farmacia.municipioId}" não existe em municipios.json.`,
       );
     }
+    if (!credenciadas.has(farmacia.id)) {
+      throw new Error(
+        `farmacias.json, item ${indice}: id "${farmacia.id}" não está em "credenciadas" de sincronizacao.json.`,
+      );
+    }
   });
 
-  return { estados, municipios, farmacias };
+  return { estados, municipios, farmacias, sincronizacao };
 }
 
 export async function importarDados(pool: Pool, dados: DadosImportacao): Promise<ResumoImportacao> {
-  const { estados, municipios, farmacias } = validar(dados);
+  const { estados, municipios, farmacias, sincronizacao } = validar(dados);
 
   const client = await pool.connect();
   try {
@@ -129,11 +169,13 @@ export async function importarDados(pool: Pool, dados: DadosImportacao): Promise
       );
     }
 
-    // Só os municípios importados são sincronizados: a extração pode ter sido filtrada.
+    // Quem decide é a lista de credenciadas, não farmacias.json: a farmácia pode continuar no
+    // programa sem coordenada. bpchar[] evita que uma UF inválida seja truncada, como em char(2)[].
     const remocao = await client.query(
-      `DELETE FROM farmacias
-       WHERE municipio_id = ANY($1::varchar[]) AND NOT (id = ANY($2::text[]))`,
-      [municipios.map((m) => m.id), farmacias.map((f) => f.id)],
+      `DELETE FROM farmacias f
+       USING municipios m
+       WHERE m.id = f.municipio_id AND m.uf = ANY($1::bpchar[]) AND NOT (f.id = ANY($2::text[]))`,
+      [sincronizacao.ufs, sincronizacao.credenciadas],
     );
 
     await client.query('COMMIT');

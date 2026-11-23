@@ -85,14 +85,22 @@ Os testes de integração com o PostgreSQL só rodam quando `DATABASE_URL_TEST` 
    cd ../..
    ```
 
-   A pasta `scripts/extrair-farmacias/saida/` (fora do git) recebe `estados.json`, `municipios.json` e `farmacias.json`, além de relatórios que a importação ignora.
+   A pasta `scripts/extrair-farmacias/saida/` (fora do git) recebe `estados.json`, `municipios.json`, `farmacias.json` e `sincronizacao.json`, além de relatórios que a importação ignora.
 2. Com as tabelas criadas (`npm run db:migrate`), rode:
 
    ```bash
    npm run db:importar -- scripts/extrair-farmacias/saida
    ```
 
-O comando valida os três arquivos antes de tocar no banco e grava tudo em uma única transação: se algo falhar, nada é alterado. Estados, municípios e farmácias são inseridos ou atualizados pelo id, então a importação pode ser repetida sem duplicar. A sincronização é por município: para cada município presente na importação, as farmácias dele que não vieram nos arquivos são removidas, porque foram descredenciadas. Municípios fora da importação não são tocados, e estados e municípios nunca são apagados.
+O comando valida os quatro arquivos antes de tocar no banco e grava tudo em uma única transação: se algo falhar, nada é alterado. Estados, municípios e farmácias são inseridos ou atualizados pelo id, então a importação pode ser repetida sem duplicar. Estados e municípios nunca são apagados.
+
+A remoção é por UF e segue só o `sincronizacao.json`, que traz as UFs cobertas pela extração (`ufs`) e o id (CNPJ) de todas as farmácias da planilha oficial (`credenciadas`), de qualquer UF e mesmo sem coordenada:
+
+- Farmácia do banco, em município dessas UFs, que não está em `credenciadas` é removida, mesmo que a extração tenha sido filtrada por município.
+- Farmácia em `credenciadas` que não veio em `farmacias.json` (sem coordenada na extração) mantém os dados já gravados.
+- Farmácias de outras UFs não são tocadas.
+
+Sem um `sincronizacao.json` válido, a importação falha sem alterar o banco; saídas antigas do extrator, sem esse arquivo, precisam ser geradas de novo.
 
 ## Endpoints
 
