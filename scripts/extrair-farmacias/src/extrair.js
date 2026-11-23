@@ -18,15 +18,21 @@ export async function extrair(planilha, filtro = {}, fontes = {}) {
     log = console.log,
   } = fontes;
 
-  let linhas = await lerFarmaciasPfpb(planilha);
-  log(`Planilha: ${linhas.length} farmácias.`);
+  const todasLinhas = await lerFarmaciasPfpb(planilha);
+  log(`Planilha: ${todasLinhas.length} farmácias.`);
 
+  let linhas = todasLinhas;
   if (filtro.uf) linhas = linhas.filter((f) => f.uf === filtro.uf);
   if (filtro.municipio) linhas = linhas.filter((f) => normalizar(f.municipio) === normalizar(filtro.municipio));
   if (!linhas.length) throw new Error('Nenhuma farmácia após o filtro. Confira --uf e --municipio.');
 
-  // Resolve cada linha para o município oficial do IBGE
   const ufs = [...new Set(linhas.map((f) => f.uf))].sort();
+
+  // A importação remove quem não está nesta lista, por isso ela cobre a planilha inteira: a farmácia pode ter mudado de UF
+  const credenciadas = [...new Set(todasLinhas.map((f) => f.cnpj))];
+  const sincronizacao = { ufs, credenciadas };
+
+  // Resolve cada linha para o município oficial do IBGE
   const naoResolvidas = [];
   for (const uf of ufs) {
     const indice = indexarMunicipios(await listarMunicipios(uf));
@@ -107,5 +113,5 @@ export async function extrair(planilha, filtro = {}, fontes = {}) {
     cobertura: total ? Number(((comCoordenada.length / total) * 100).toFixed(1)) : 0,
   };
 
-  return { estados, municipios, farmacias: comCoordenada, semCoordenada, geocodificadas, metadados };
+  return { estados, municipios, farmacias: comCoordenada, semCoordenada, geocodificadas, metadados, sincronizacao };
 }

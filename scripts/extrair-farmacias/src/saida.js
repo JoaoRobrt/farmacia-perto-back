@@ -11,7 +11,7 @@ function csv(linhas) {
 }
 
 /** Grava os arquivos no formato do contrato da API e os relatórios. */
-export async function gravarSaida(pasta, { estados, municipios, farmacias, semCoordenada, geocodificadas, metadados }) {
+export async function gravarSaida(pasta, { estados, municipios, farmacias, semCoordenada, geocodificadas, metadados, sincronizacao }) {
   await mkdir(pasta, { recursive: true });
   await Promise.all([
     writeFile(join(pasta, 'estados.json'), json(estados)),
@@ -20,5 +20,6 @@ export async function gravarSaida(pasta, { estados, municipios, farmacias, semCo
     writeFile(join(pasta, 'sem-coordenadas.csv'), csv(semCoordenada)),
     writeFile(join(pasta, 'geocodificadas.csv'), csv(geocodificadas)),
     writeFile(join(pasta, 'metadados.json'), json(metadados)),
+    writeFile(join(pasta, 'sincronizacao.json'), json(sincronizacao)),
   ]);
 }

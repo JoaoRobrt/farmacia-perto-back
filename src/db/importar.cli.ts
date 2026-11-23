@@ -24,6 +24,7 @@ async function importar(pasta: string): Promise<void> {
     estados: lerJson(pasta, 'estados.json'),
     municipios: lerJson(pasta, 'municipios.json'),
     farmacias: lerJson(pasta, 'farmacias.json'),
+    sincronizacao: lerJson(pasta, 'sincronizacao.json'),
   };
   carregarArquivoEnv();
   const { databaseUrl } = lerConfig();
@@ -41,7 +42,9 @@ async function importar(pasta: string): Promise<void> {
 
 const pasta = process.argv[2];
 if (!pasta) {
-  console.error('Uso: npm run db:importar -- <pasta com estados.json, municipios.json e farmacias.json>');
+  console.error(
+    'Uso: npm run db:importar -- <pasta com estados.json, municipios.json, farmacias.json e sincronizacao.json>',
+  );
   process.exit(1);
 }
 
