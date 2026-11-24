@@ -13,6 +13,12 @@ export function somenteDigitos(texto) {
   return String(texto ?? '').replace(/\D/g, '');
 }
 
+/** CNPJ com 14 posições, em maiúsculas e sem pontuação; fora do formato, só os dígitos. */
+export function normalizarCnpj(texto) {
+  const cnpj = normalizar(texto).replace(/[^A-Z0-9]/g, '');
+  return /^[A-Z0-9]{12}[0-9]{2}$/.test(cnpj) ? cnpj : somenteDigitos(texto);
+}
+
 /** "Campina Grande" + "PB" -> "pb-campina-grande" (padrão de id do app). */
 export function idMunicipio(uf, nome) {
   const slug = normalizar(nome)

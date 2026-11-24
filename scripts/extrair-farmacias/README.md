@@ -30,7 +30,7 @@ npm run extrair -- --uf PB --sem-geocodificar              # só CNES, sem OpenS
 |---|---|
 | `estados.json` | `Estado[]` com ao menos uma farmácia |
 | `municipios.json` | `Municipio[]` (`id` no padrão `pb-campina-grande`) |
-| `farmacias.json` | `Farmacia[]` com coordenada válida (`id` = CNPJ) |
+| `farmacias.json` | `Farmacia[]` com coordenada válida (`id` = CNPJ: 14 posições, sem pontuação e, se alfanumérico, com letras maiúsculas) |
 | `sem-coordenadas.csv` | Farmácias que ficaram de fora e o motivo |
 | `geocodificadas.csv` | Farmácias localizadas pelo OpenStreetMap, com a precisão, para revisão |
 | `metadados.json` | Fontes, data da extração, totais, % de cobertura e quantas farmácias ficaram sem consulta por falha do CNES ou do OpenStreetMap (`falhas`) |
