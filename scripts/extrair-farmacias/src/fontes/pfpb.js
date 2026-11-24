@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import ExcelJS from 'exceljs';
 import { buscar } from '../http.js';
-import { normalizar, somenteDigitos } from '../texto.js';
+import { normalizar, normalizarCnpj, somenteDigitos } from '../texto.js';
 
 /** Planilha oficial "Farmácias participantes do PFPB" (Ministério da Saúde). */
 export const URL_PLANILHA_PFPB =
@@ -75,7 +75,7 @@ export async function lerFarmaciasPfpb(buffer) {
   for (let n = linhaCabecalho + 1; n <= planilha.rowCount; n++) {
     const linha = planilha.getRow(n);
     const ler = (campo) => (mapa[campo] ? textoCelula(linha.getCell(mapa[campo])) : '');
-    const cnpj = somenteDigitos(ler('cnpj')).padStart(14, '0');
+    const cnpj = normalizarCnpj(ler('cnpj')).padStart(14, '0');
     if (cnpj === '0'.repeat(14)) continue;
 
     farmacias.push({

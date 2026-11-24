@@ -1,5 +1,5 @@
 import { buscarJson, esperar } from '../http.js';
-import { somenteDigitos } from '../texto.js';
+import { normalizarCnpj } from '../texto.js';
 
 const API_CNES = 'https://apidadosabertos.saude.gov.br/cnes/estabelecimentos';
 const TIPO_FARMACIA = 43;
@@ -20,7 +20,7 @@ export async function coordenadasCnesPorCnpj(codigoIbge) {
     const { estabelecimentos = [] } = await buscarJson(url);
 
     for (const e of estabelecimentos) {
-      const cnpj = somenteDigitos(e.numero_cnpj);
+      const cnpj = normalizarCnpj(e.numero_cnpj);
       if (cnpj.length !== 14) continue;
       porCnpj.set(cnpj, {
         latitude: e.latitude_estabelecimento_decimo_grau,

@@ -5,6 +5,8 @@ import { geocodificarNominatim } from './fontes/nominatim.js';
 import { coordenadaValida, cruzar } from './cruzamento.js';
 import { idMunicipio, normalizar } from './texto.js';
 
+const LIMITE_FALHAS_SEGUIDAS = 3;
+
 /**
  * Orquestra a extração: planilha -> filtro -> IBGE -> CNES -> cruzamento.
  * As fontes externas vêm por parâmetro para poderem ser simuladas nos testes.
@@ -33,6 +35,9 @@ export async function extrair(planilha, filtro = {}, fontes = {}) {
   const credenciadas = [...new Set(todasLinhas.map((f) => f.cnpj))];
   const sincronizacao = { ufs, credenciadas };
 
+  // Antes das consultas demoradas, para uma falha do IBGE não descartar o que elas obtiveram
+  const todosEstados = await listarEstados();
+
   // Resolve cada linha para o município oficial do IBGE
   for (const uf of ufs) {
     const indice = indexarMunicipios(await listarMunicipios(uf));
@@ -47,22 +52,53 @@ export async function extrair(planilha, filtro = {}, fontes = {}) {
   // Busca as coordenadas no CNES, um município por vez
   const codigos = [...new Set(resolvidas.map((f) => f.municipioIbge.codigo))];
   const coordenadasPorMunicipio = new Map();
+  let falhasSeguidasCnes = 0;
   for (const [i, codigo] of codigos.entries()) {
     log(`CNES ${i + 1}/${codigos.length}: município ${codigo}`);
-    coordenadasPorMunicipio.set(codigo, await coordenadasCnes(codigo));
+    try {
+      coordenadasPorMunicipio.set(codigo, await coordenadasCnes(codigo));
+      falhasSeguidasCnes = 0;
+    } catch (erro) {
+      log(`Aviso: falha ao consultar o CNES para o município ${codigo}: ${erro.message}`);
+      falhasSeguidasCnes++;
+      if (falhasSeguidasCnes === LIMITE_FALHAS_SEGUIDAS) {
+        log(`Aviso: consulta ao CNES interrompida após ${LIMITE_FALHAS_SEGUIDAS} falhas seguidas.`);
+        break;
+      }
+    }
   }
 
-  const { comCoordenada, semCoordenada: semCoordenadaCnes } = cruzar(resolvidas, coordenadasPorMunicipio);
+  const { comCoordenada, semCoordenada: semCoordenadaCnes, naoConsultadas } = cruzar(resolvidas, coordenadasPorMunicipio);
   const viaCnes = comCoordenada.length;
+  const falhas = { cnes: naoConsultadas.length, openStreetMap: 0 };
 
   // Quem ficou sem coordenada no CNES tenta a geocodificação pelo endereço
   const semCoordenada = [];
   const geocodificadas = [];
   if (filtro.geocodificar !== false) {
+    let falhasSeguidas = 0;
     for (const [i, f] of semCoordenadaCnes.entries()) {
-      log(`Geocodificando ${i + 1}/${semCoordenadaCnes.length}: ${f.nome}`);
-      const ponto = await geocodificar(f);
-      if (ponto && coordenadaValida(ponto.latitude, ponto.longitude)) {
+      let ponto;
+      let falhou = falhasSeguidas === LIMITE_FALHAS_SEGUIDAS;
+      if (!falhou) {
+        log(`Geocodificando ${i + 1}/${semCoordenadaCnes.length}: ${f.nome}`);
+        try {
+          ponto = await geocodificar(f);
+          falhasSeguidas = 0;
+        } catch (erro) {
+          falhou = true;
+          log(`Aviso: falha ao geocodificar ${f.nome}: ${erro.message}`);
+          falhasSeguidas++;
+          if (falhasSeguidas === LIMITE_FALHAS_SEGUIDAS) {
+            log(`Aviso: geocodificação interrompida após ${LIMITE_FALHAS_SEGUIDAS} falhas seguidas.`);
+          }
+        }
+      }
+
+      if (falhou) {
+        falhas.openStreetMap++;
+        semCoordenada.push({ ...f, motivo: `${f.motivo}; falha ao consultar o OpenStreetMap` });
+      } else if (ponto && coordenadaValida(ponto.latitude, ponto.longitude)) {
         comCoordenada.push({
           id: f.cnpj,
           nome: f.nome,
@@ -81,12 +117,19 @@ export async function extrair(planilha, filtro = {}, fontes = {}) {
     semCoordenada.push(...semCoordenadaCnes);
   }
 
+  if (!comCoordenada.length && (falhas.cnes || falhas.openStreetMap)) {
+    const fontesComFalha = [falhas.cnes && 'o CNES', falhas.openStreetMap && 'o OpenStreetMap'].filter(Boolean).join(' e ');
+    throw new Error(`Nenhuma farmácia ficou com coordenada e houve falha ao consultar ${fontesComFalha}. Nada foi gravado; tente de novo mais tarde.`);
+  }
+
+  // Sem geocodificação: no banco, a precisão de rua substituiria uma coordenada do CNES
+  semCoordenada.push(...naoConsultadas);
+
   for (const f of naoResolvidas) {
     semCoordenada.push({ cnpj: f.cnpj, nome: f.nome, endereco: f.endereco, bairro: f.bairro, uf: f.uf, municipio: f.municipio, motivo: 'município não reconhecido no IBGE' });
   }
 
   // Estados e municípios que têm ao menos uma farmácia com coordenada
-  const todosEstados = await listarEstados();
   const ufsComFarmacia = new Set(comCoordenada.map((f) => f.municipioId.slice(0, 2).toUpperCase()));
   const estados = todosEstados.filter((e) => ufsComFarmacia.has(e.sigla));
 
@@ -110,6 +153,7 @@ export async function extrair(planilha, filtro = {}, fontes = {}) {
     viaCnes,
     viaGeocodificacao: geocodificadas.length,
     semCoordenada: semCoordenada.length,
+    falhas,
     cobertura: total ? Number(((comCoordenada.length / total) * 100).toFixed(1)) : 0,
   };
 

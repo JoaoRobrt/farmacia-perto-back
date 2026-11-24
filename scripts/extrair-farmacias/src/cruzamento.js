@@ -9,20 +9,37 @@ export function coordenadaValida(lat, lng) {
   );
 }
 
+const itemSemCoordenada = (f, motivo) => ({
+  cnpj: f.cnpj,
+  nome: f.nome,
+  endereco: f.endereco,
+  bairro: f.bairro,
+  uf: f.uf,
+  municipio: f.municipioIbge.nome,
+  motivo,
+});
+
 /**
  * Junta as farmácias da planilha com as coordenadas do CNES pelo CNPJ.
- * Devolve as farmácias no formato do contrato e as que ficaram sem coordenada.
+ * Devolve as farmácias no formato do contrato, as que ficaram sem coordenada
+ * e as não consultadas, cujo município não está em `coordenadasPorMunicipio`.
  * @param {Array} farmacias linhas da planilha já com `municipioIbge` ({ codigo, nome })
  * @param {Map<string, Map>} coordenadasPorMunicipio código IBGE -> (CNPJ -> coordenada)
  */
 export function cruzar(farmacias, coordenadasPorMunicipio) {
   const comCoordenada = [];
   const semCoordenada = [];
+  const naoConsultadas = [];
   const vistos = new Set();
 
   for (const f of farmacias) {
     if (vistos.has(f.cnpj)) continue; // a planilha pode repetir o CNPJ
     vistos.add(f.cnpj);
+
+    if (!coordenadasPorMunicipio.has(f.municipioIbge.codigo)) {
+      naoConsultadas.push(itemSemCoordenada(f, 'falha ao consultar o CNES'));
+      continue;
+    }
 
     const coordenada = coordenadasPorMunicipio.get(f.municipioIbge.codigo)?.get(f.cnpj);
     const lat = Number(coordenada?.latitude);
@@ -39,16 +56,8 @@ export function cruzar(farmacias, coordenadasPorMunicipio) {
         longitude: lng,
       });
     } else {
-      semCoordenada.push({
-        cnpj: f.cnpj,
-        nome: f.nome,
-        endereco: f.endereco,
-        bairro: f.bairro,
-        uf: f.uf,
-        municipio: f.municipioIbge.nome,
-        motivo: coordenada ? 'coordenada inválida no CNES' : 'CNPJ não encontrado no CNES',
-      });
+      semCoordenada.push(itemSemCoordenada(f, coordenada ? 'coordenada inválida no CNES' : 'CNPJ não encontrado no CNES'));
     }
   }
-  return { comCoordenada, semCoordenada };
+  return { comCoordenada, semCoordenada, naoConsultadas };
 }
