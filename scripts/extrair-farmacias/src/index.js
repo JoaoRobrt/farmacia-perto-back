@@ -15,6 +15,10 @@ try {
   console.log(`\nPronto em ./${args.saida}: ${m.comCoordenada} de ${m.totalFarmacias} farmácias com coordenada (${m.cobertura}%): ${m.viaCnes} pelo CNES e ${m.viaGeocodificacao} geocodificadas.`);
   if (m.viaGeocodificacao) console.log('Confira as geocodificadas em geocodificadas.csv.');
   if (m.semCoordenada) console.log(`As ${m.semCoordenada} sem coordenada estão em sem-coordenadas.csv.`);
+  const { falhas } = m;
+  if (falhas.cnes || falhas.openStreetMap) {
+    console.log(`Aviso: extração parcial por falha nas fontes. Farmácias sem consulta ao CNES: ${falhas.cnes}; sem consulta ao OpenStreetMap: ${falhas.openStreetMap}. Elas estão em sem-coordenadas.csv; rode a extração de novo para completá-las.`);
+  }
 } catch (erro) {
   console.error(`Erro: ${erro.message}`);
   process.exitCode = 1;
